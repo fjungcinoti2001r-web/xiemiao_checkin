@@ -1794,7 +1794,7 @@ function renderList() {
           ${st.avg ? `⭐ ${st.avg}星 / ${doubanScore10}分 (${st.scoreCount}人评)` : (st.readCount > 0 ? `${st.readCount}人打卡` : "暂无评分")}
         </div>
       </div>
-      <div class="b-meta">饰演角色：<b>${esc(w.role)}</b> ｜ 状态：${w.upcoming ? `<span style="color:#945d00;font-weight:bold;">${w.statusLabel}</span>` : "已上映/已播出"}</div>
+      <div class="b-meta">饰演角色：<b>${esc(w.role)}</b> ｜ 状态：${w.upcoming ? `<span style="color:#945d00;font-weight:bold;">${w.statusLabel}</span>` : "已上映"}</div>
       ${pillsHtml}
       <div class="my-action">
         <label class="read-btn">
