@@ -27,7 +27,7 @@
     background: var(--bg);
     color: var(--text);
     font-family: "Noto Serif SC", "Source Han Serif CN", "STSong", "SimSun", serif;
-    padding-bottom: 95px;
+    padding-bottom: 24px;
     background-image: radial-gradient(circle, #e6ded1 1px, transparent 1px);
     background-size: 20px 20px;
   }
@@ -904,6 +904,55 @@
   h1.clickable-title { cursor: pointer; }
   h1.clickable-title:hover { opacity: 0.85; }
 
+
+  .music-wrap { position: relative; }
+  .music-btn {
+    background: var(--paper);
+    color: var(--accent);
+    border: 1px solid var(--border-dark);
+    width: 30px;
+    height: 26px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    line-height: 1;
+  }
+  .music-btn.playing { background: #f7eee3; }
+  .music-panel {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 32px;
+    background: var(--paper);
+    border: 1px solid var(--border-dark);
+    border-radius: 4px;
+    padding: 8px 10px;
+    width: 160px;
+    z-index: 50;
+    box-shadow: 0 4px 12px rgba(60,45,35,0.12);
+    font-family: sans-serif;
+  }
+  .music-panel.open { display: block; }
+  .music-panel label {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .music-panel input[type="range"] { width: 100%; }
+  .music-play-btn {
+    margin-top: 6px;
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 3px;
+    padding: 4px 0;
+    font-size: 0.72rem;
+    cursor: pointer;
+    font-family: sans-serif;
+  }
+
 </style>
 </head>
 <body>
@@ -927,9 +976,17 @@
       <div class="detective-row">
         <div class="personal-stats-header">
           <span>🎬苗友：<b id="curMemberLabelText">未登录</b></span>
-          <button class="id-switch-btn" onclick="openIdModal()">✎ 注册 / 切换ID</button>
+
         </div>
         <div class="action-btns-right">
+          <div class="music-wrap">
+            <button class="music-btn" id="musicIcon" onclick="toggleMusicPanel(event)" title="BGM">🎵</button>
+            <div class="music-panel" id="musicPanel">
+              <label>音量</label>
+              <input type="range" min="0" max="1" step="0.05" value="0.25" oninput="changeVolume(this.value)">
+              <button class="music-play-btn" onclick="toggleBGM()">播放 / 暂停</button>
+            </div>
+          </div>
           <button class="share-btn-inline" onclick="openSharePoster()">📊 share</button>
         </div>
       </div>
@@ -985,17 +1042,7 @@
 </div>
 
 <!-- 底部悬浮快捷栏 -->
-<div class="bottom-dock">
-  <div class="dock-left">
-    <span>当前ID:</span>
-    <select id="dockMemberSelect" onchange="switchMemberFromDock(this.value)"></select>
-    <button class="dock-new-btn" onclick="openIdModal()">+ 注册新ID</button>
-  </div>
-  <div class="dock-music">
-    <span id="musicIcon" class="music-icon" onclick="toggleBGM()" title="点击播放/暂停复古武侠伴奏">🎵</span>
-    <input type="range" min="0" max="1" step="0.05" value="0.25" oninput="changeVolume(this.value)" title="伴奏音量调节">
-  </div>
-</div>
+
 
 <!-- 注册/切换 ID 弹窗 -->
 <div class="modal-overlay" id="idModal" onclick="if(event.target===this)closeIdModal()">
@@ -1109,6 +1156,19 @@ function playPluck(freq) {
   osc.start(now);
   osc.stop(now + 1.15);
 }
+
+
+function toggleMusicPanel(e) {
+  if (e) e.stopPropagation();
+  const panel = document.getElementById("musicPanel");
+  panel.classList.toggle("open");
+}
+document.addEventListener("click", (e) => {
+  const wrap = document.querySelector(".music-wrap");
+  const panel = document.getElementById("musicPanel");
+  if (!wrap || !panel) return;
+  if (!wrap.contains(e.target)) panel.classList.remove("open");
+});
 
 function toggleBGM() {
   const icon = document.getElementById("musicIcon");
@@ -1412,14 +1472,6 @@ function renderOverview() {
 
   // 当前登录ID展示
   document.getElementById("curMemberLabelText").textContent = currentMember || "未注册（点击右侧设置）";
-
-  // 底部悬浮栏下拉菜单
-  const dockSelect = document.getElementById("dockMemberSelect");
-  if (members.length === 0) {
-    dockSelect.innerHTML = `<option value="">未注册ID</option>`;
-  } else {
-    dockSelect.innerHTML = members.map(m => `<option value="${esc(m)}" ${m === currentMember ? "selected" : ""}>${esc(m)}</option>`).join("");
-  }
 
   // 计算当前苗粉个人进度（分母为已映作品数，不含待映/待播）
   let personalReadCount = 0;
@@ -1778,8 +1830,6 @@ function renderList() {
       ? `${currentMember ? esc(currentMember) : "我"}想看/期待`
       : `${currentMember ? esc(currentMember) : "我"}已看`;
 
-    const doubanScore10 = st.avg ? (Number(st.avg) * 2).toFixed(1) : null;
-
     const row = document.createElement("div");
     row.className = `book-item ${myR.is_read ? "is-read" : ""} ${w.upcoming ? "is-upcoming" : ""}`;
     row.innerHTML = `
@@ -1791,7 +1841,7 @@ function renderList() {
           ${upcomingBadge}
         </div>
         <div class="b-avg ${st.avg ? "" : "none"}">
-          ${st.avg ? `⭐ ${st.avg}星 / ${doubanScore10}分 (${st.scoreCount}人评)` : (st.readCount > 0 ? `${st.readCount}人打卡` : "暂无评分")}
+          ${st.avg ? `⭐ ${st.avg}（${st.scoreCount}人评）` : (st.readCount > 0 ? `${st.readCount}人打卡` : "暂无评分")}
         </div>
       </div>
       <div class="b-meta">饰演角色：<b>${esc(w.role)}</b> ｜ 状态：${w.upcoming ? `<span style="color:#945d00;font-weight:bold;">${w.statusLabel}</span>` : "已上映"}</div>
