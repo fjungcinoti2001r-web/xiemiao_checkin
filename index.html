@@ -1132,31 +1132,21 @@ function showToast(msg) {
   toastTimer = setTimeout(() => el.classList.remove("show"), 2200);
 }
 
-// ================= 内置 Web Audio 古风拨弦伴奏（免外部 mp3 依赖） =================
-let audioCtx = null;
+// ================= BGM（同级目录 bgm.mp3） =================
+let bgmAudio = null;
 let bgmPlaying = false;
-let bgmGain = 0.25;
-let bgmInterval = null;
-const PENTATONIC_NOTES = [220.00, 261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33];
-const MELODY_SEQ = [0, 2, 3, 4, 3, 2, 1, 0, 3, 4, 5, 4, 3, 2, 1, 2];
-let noteIdx = 0;
 
-function playPluck(freq) {
-  if (!audioCtx || !bgmPlaying) return;
-  const now = audioCtx.currentTime;
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.type = "triangle";
-  osc.frequency.setValueAtTime(freq, now);
-  gain.gain.setValueAtTime(0.001, now);
-  gain.gain.linearRampToValueAtTime(bgmGain * 0.25, now + 0.03);
-  gain.gain.exponentialRampToValueAtTime(0.0008, now + 1.1);
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-  osc.start(now);
-  osc.stop(now + 1.15);
+function getBgm() {
+  if (!bgmAudio) {
+    bgmAudio = new Audio("bgm.mp3");
+    bgmAudio.loop = true;
+    bgmAudio.volume = 0.25;
+    bgmAudio.addEventListener("error", () => {
+      showToast("未找到 bgm.mp3，请放到和 index 同级目录");
+    });
+  }
+  return bgmAudio;
 }
-
 
 function toggleMusicPanel(e) {
   if (e) e.stopPropagation();
@@ -1172,41 +1162,27 @@ document.addEventListener("click", (e) => {
 
 function toggleBGM() {
   const icon = document.getElementById("musicIcon");
+  const audio = getBgm();
   if (!bgmPlaying) {
-    try {
-      if (!audioCtx) {
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        audioCtx = new AudioContextClass();
-      }
-      if (audioCtx.state === "suspended") audioCtx.resume();
+    audio.play().then(() => {
       bgmPlaying = true;
       icon.classList.add("playing");
-      playPluck(PENTATONIC_NOTES[MELODY_SEQ[noteIdx % MELODY_SEQ.length]]);
-      noteIdx++;
-      if (bgmInterval) clearInterval(bgmInterval);
-      bgmInterval = setInterval(() => {
-        if (!bgmPlaying) return;
-        const freq = PENTATONIC_NOTES[MELODY_SEQ[noteIdx % MELODY_SEQ.length]];
-        playPluck(freq);
-        noteIdx++;
-      }, 650);
-      showToast("🎵 已开启古风伴奏");
-    } catch (e) {
-      showToast("浏览器暂不支持音频播放");
-    }
+      showToast("🎵 BGM 已开启");
+    }).catch(() => {
+      showToast("播放失败，请确认 bgm.mp3 在同级目录");
+    });
   } else {
+    audio.pause();
     bgmPlaying = false;
-    if (bgmInterval) {
-      clearInterval(bgmInterval);
-      bgmInterval = null;
-    }
     icon.classList.remove("playing");
-    showToast("🔇 已暂停伴奏");
+    showToast("🔇 已暂停");
   }
 }
 
 function changeVolume(val) {
-  bgmGain = Number(val);
+  const v = Number(val);
+  const audio = getBgm();
+  audio.volume = v;
 }
 
 // ================= 2. 演员谢苗完整作品库（73部：54部电影 + 19部剧集） =================
