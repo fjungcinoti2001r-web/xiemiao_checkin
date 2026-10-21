@@ -1114,7 +1114,7 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) {
   try {
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const badge = document.getElementById("syncBadge");
-    badge.textContent = "◆ 本站为苗友观影打卡与短评社区，内容由用户自行填写。请勿发布引起不适或与打卡无关的内容。请自觉遵守互联网用语规范，不发布敏感词、违禁词及其他违法违规信息。不适言论与本站无关。用户应自觉承担其发言所带来的影响和法律责任。如有不当内容，本站有权删除相关记录。感谢配合。 ◆";
+    badge.textContent = "◆ 本站为苗友观影打卡与短评社区，内容由用户自行填写。请勿发布引起不适或与打卡无关的内容。请自觉遵守互联网用语规范，不发布敏感词、违禁词及其他违法违规信息。不适言论、不当内容与本站无关，用户承担其发言所带来的影响和法律责任。如有不当内容，本站有权删除相关记录。感谢配合。 ◆";
     badge.classList.add("online");
   } catch (e) {
     console.warn("Supabase init error:", e);
