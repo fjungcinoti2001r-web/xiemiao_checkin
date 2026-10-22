@@ -612,6 +612,23 @@
   .c-row b { color: var(--accent); margin-right: 4px; }
   .c-stars { color: var(--gold); font-size: 0.7rem; margin-right: 5px; }
   .c-time { color: #a89f91; font-size: 0.66rem; white-space: nowrap; }
+  .like-btn {
+    border: 1px solid var(--border);
+    background: #faf6f0;
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 1px 8px;
+    font-size: 0.68rem;
+    cursor: pointer;
+    font-family: sans-serif;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .like-btn.on {
+    background: #f7eee3;
+    color: var(--accent);
+    border-color: var(--accent);
+  }
 
   /* 底部悬浮快捷栏 */
   .bottom-dock {
@@ -1304,6 +1321,8 @@ try {
   knownUsers = [];
 }
 let records = {};
+let likes = {}; // key: bookId_commentMember -> [liker, ...]
+
 try {
   records = JSON.parse(safeGetStorage(LOCAL_KEY, "{}"));
 } catch (e) {
@@ -1370,12 +1389,87 @@ async function fetchFromSupabase(manual = false) {
       });
       records = merged;
       safeSetStorage(LOCAL_KEY, JSON.stringify(records));
+      await fetchLikes();
       renderOverview();
       renderList();
       if (manual) showToast("✅ 已同步全站最新打卡与短评");
     }
   } catch (e) {
     console.warn("Supabase fetch error:", e);
+  }
+}
+
+async function fetchLikes() {
+  if (!supabaseClient) return;
+  try {
+    const { data, error } = await supabaseClient
+      .from("xiemiao_likes")
+      .select("book_id, comment_member, liker");
+    if (error) {
+      console.warn("likes fetch error:", error);
+      return;
+    }
+    const next = {};
+    (data || []).forEach(row => {
+      if (!row.book_id || !row.comment_member || !row.liker) return;
+      const key = `${row.book_id}_${String(row.comment_member).trim()}`;
+      if (!next[key]) next[key] = [];
+      const liker = String(row.liker).trim();
+      if (!next[key].includes(liker)) next[key].push(liker);
+    });
+    likes = next;
+  } catch (e) {
+    console.warn("likes fetch error:", e);
+  }
+}
+
+function getLikeInfo(workId, commentMember) {
+  const key = `${workId}_${commentMember}`;
+  const arr = likes[key] || [];
+  return {
+    count: arr.length,
+    liked: !!(currentMember && arr.includes(currentMember))
+  };
+}
+
+async function toggleLike(workId, commentMember) {
+  if (!currentMember) {
+    openIdModal();
+    showToast("请先登录 ID 再点赞");
+    return;
+  }
+  if (!supabaseClient) {
+    showToast("云端未连接，暂时无法点赞");
+    return;
+  }
+  const key = `${workId}_${commentMember}`;
+  const arr = likes[key] ? likes[key].slice() : [];
+  const liked = arr.includes(currentMember);
+  try {
+    if (liked) {
+      const { error } = await supabaseClient
+        .from("xiemiao_likes")
+        .delete()
+        .eq("book_id", workId)
+        .eq("comment_member", commentMember)
+        .eq("liker", currentMember);
+      if (error) throw error;
+      likes[key] = arr.filter(x => x !== currentMember);
+    } else {
+      const { error } = await supabaseClient
+        .from("xiemiao_likes")
+        .insert({
+          book_id: workId,
+          comment_member: commentMember,
+          liker: currentMember
+        });
+      if (error) throw error;
+      likes[key] = arr.concat(currentMember);
+    }
+    renderList();
+  } catch (e) {
+    console.warn("toggle like error:", e);
+    showToast("点赞失败，请确认已建好 xiemiao_likes 表");
   }
 }
 
@@ -1790,9 +1884,12 @@ function renderList() {
     const commentsHtml = commentRows.map(c => {
       const starBadge = c.score ? `<span class="c-stars">${"★".repeat(c.score)}</span>` : "";
       const dateStr = c.updated_at ? c.updated_at.slice(5, 10) : "";
+      const likeInfo = getLikeInfo(w.id, c.member);
+      const memberArg = encodeURIComponent(c.member);
       return `
         <div class="c-row">
           <div class="c-main"><b>${esc(c.member)}:</b>${starBadge}${esc(c.comment)}</div>
+          <button class="like-btn ${likeInfo.liked ? "on" : ""}" onclick="toggleLike(${w.id}, decodeURIComponent('${memberArg}'))" title="匿名点赞">${likeInfo.liked ? "👍" : "👍🏻"} ${likeInfo.count}</button>
           ${dateStr ? `<span class="c-time">${dateStr}</span>` : ""}
         </div>
       `;
