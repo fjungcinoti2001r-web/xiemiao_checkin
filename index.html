@@ -1669,7 +1669,7 @@ function renderLeaderboard(type) {
       `;
     }).join("");
   } else {
-    if (hint) hint.textContent = "按影评收到的点赞总数排名，只计数量，不显示是谁点的。";
+    if (hint) hint.textContent = "按影评收到的点赞总数排名";
     const rows = members.map(m => ({ m, ...getMemberLikeCount(m) }));
     rows.sort((a, b) => b.likes - a.likes || b.likedReviews - a.likedReviews || a.m.localeCompare(b.m, "zh"));
     content.innerHTML = rows.map((row, i) => {
