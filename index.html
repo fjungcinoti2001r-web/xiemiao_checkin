@@ -1052,6 +1052,7 @@
     <div class="lb-subtabs">
       <button class="lb-tab active" id="lb_progress" onclick="renderLeaderboard('progress')">🏆 全通进度</button>
       <button class="lb-tab" id="lb_words" onclick="renderLeaderboard('words')">📝 影评字数</button>
+      <button class="lb-tab" id="lb_likes" onclick="renderLeaderboard('likes')">👍 获赞最多</button>
     </div>
     <div class="lb-hint" id="lbHint"></div>
     <div id="leaderboardContent"></div>
@@ -1332,7 +1333,7 @@ try {
 let currentCategory = "all"; // 'all' | 'movie' | 'tv'
 let showAllMembers = false;
 let currentView = "list"; // 'list' | 'rank'
-let currentRankType = "progress"; // 'progress' | 'words' 
+let currentRankType = "progress"; // 'progress' | 'words' | 'likes' 
 
 function ensureUserRegistered(name) {
   const clean = (name || "").trim();
@@ -1467,6 +1468,7 @@ async function toggleLike(workId, commentMember) {
       likes[key] = arr.concat(currentMember);
     }
     renderList();
+    if (currentView === "rank") renderLeaderboard(currentRankType);
   } catch (e) {
     console.warn("toggle like error:", e);
     showToast("点赞失败，请确认已建好 xiemiao_likes 表");
@@ -1616,8 +1618,10 @@ function renderLeaderboard(type) {
   currentRankType = type || "progress";
   const progressBtn = document.getElementById("lb_progress");
   const wordsBtn = document.getElementById("lb_words");
+  const likesBtn = document.getElementById("lb_likes");
   if (progressBtn) progressBtn.classList.toggle("active", currentRankType === "progress");
   if (wordsBtn) wordsBtn.classList.toggle("active", currentRankType === "words");
+  if (likesBtn) likesBtn.classList.toggle("active", currentRankType === "likes");
 
   const hint = document.getElementById("lbHint");
   const content = document.getElementById("leaderboardContent");
@@ -1647,7 +1651,7 @@ function renderLeaderboard(type) {
         </div>
       `;
     }).join("");
-  } else {
+  } else if (currentRankType === "words") {
     if (hint) hint.textContent = "按全站短评字数（汉字/字符）合计排名，字数越多越靠前。";
     const rows = members.map(m => ({ m, ...getMemberWordCount(m) }));
     rows.sort((a, b) => b.chars - a.chars || b.reviews - a.reviews || a.m.localeCompare(b.m, "zh"));
@@ -1664,7 +1668,41 @@ function renderLeaderboard(type) {
         </div>
       `;
     }).join("");
+  } else {
+    if (hint) hint.textContent = "按影评收到的点赞总数排名，只计数量，不显示是谁点的。";
+    const rows = members.map(m => ({ m, ...getMemberLikeCount(m) }));
+    rows.sort((a, b) => b.likes - a.likes || b.likedReviews - a.likedReviews || a.m.localeCompare(b.m, "zh"));
+    content.innerHTML = rows.map((row, i) => {
+      const rank = i + 1;
+      const rankCls = rank === 1 ? "top1" : rank === 2 ? "top2" : rank === 3 ? "top3" : "";
+      const me = currentMember && row.m === currentMember ? " me" : "";
+      const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
+      return `
+        <div class="lb-row${me}">
+          <div class="lb-rank ${rankCls}">${medal}</div>
+          <div class="lb-name">${esc(row.m)}${me ? "（我）" : ""}</div>
+          <div class="lb-meta"><b>${row.likes}</b> 赞</div>
+        </div>
+      `;
+    }).join("");
   }
+}
+
+function getMemberLikeCount(member) {
+  let total = 0;
+  let likedReviews = 0;
+  Object.keys(likes).forEach(key => {
+    const idx = key.indexOf("_");
+    if (idx < 0) return;
+    const owner = key.slice(idx + 1);
+    if (owner !== member) return;
+    const n = (likes[key] || []).length;
+    if (n > 0) {
+      total += n;
+      likedReviews++;
+    }
+  });
+  return { likes: total, likedReviews };
 }
 
 function switchMemberFromDock(m) {
